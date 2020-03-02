@@ -14,28 +14,72 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type TokenObject map[string]string
 
 func New(customFields map[string]string) (ts string) {
 	to := TokenObject{}
+
+	expTime := time.Now()
+	expTime = expTime.Add(15 * time.Minute)
+
+	customFields["exp"] = strconv.FormatInt(expTime.Unix(), 10)
+
 	to = customFields
-	ts = to.Encrypt()
+	ts = to.encrypt()
 	return
 }
 
-func (t *TokenObject) Encrypt() (ts string) {
+func (t *TokenObject) encrypt() (ts string) {
 	hash, _ := bcrypt.GenerateFromPassword([]byte(os.Getenv("LDT_SECRET")), 12)
 	customFields, _ := json.Marshal(t)
-
 	encryptedCustomFields := encrypt(customFields, os.Getenv("LDT_SECRET"))
-	ts = base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s", string(hash), string(encryptedCustomFields))))
+	hashString := base64.StdEncoding.EncodeToString(hash)
+	fieldsString := base64.StdEncoding.EncodeToString(encryptedCustomFields)
+	ts = base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s.%s", hashString, fieldsString)))
 	return
 }
 
-func GetLdtToken(req *http.Request) (to TokenObject, err error) {
+func (t *TokenObject) isExpired() (isExpired bool, err error) {
+	timeNow := time.Now()
+	expiration, err := strconv.ParseInt(t.GetValue("exp"), 10, 64)
+	if timeNow.After(time.Unix(expiration, 0)) {
+		isExpired = true
+		return
+	}
+	return
+}
+
+func (t TokenObject) GetValue(key string) (value string) {
+	for k, v := range t {
+		if k == key {
+			return v
+		}
+	}
+	return
+}
+
+func RenewLdtToken(req *http.Request) (isExpired bool, ts string, err error) {
+	isExpired, to, err := GetLdtToken(req)
+
+	if err != nil {
+		return
+	}
+
+	expTime := time.Now()
+	expTime = expTime.Add(15 * time.Minute)
+
+	to["exp"] = strconv.FormatInt(expTime.Unix(), 10)
+
+	ts = to.encrypt()
+	return
+}
+
+func GetLdtToken(req *http.Request) (isExpired bool, to TokenObject, err error) {
 	token := req.Header.Get("Authorization")
 	firstSplitToken := strings.Split(token, " ")
 
@@ -53,15 +97,26 @@ func GetLdtToken(req *http.Request) (to TokenObject, err error) {
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(splitToken[0]), []byte(os.Getenv("LDT_SECRET")))
+	hash, _ := base64.StdEncoding.DecodeString(splitToken[0])
+
+	err = bcrypt.CompareHashAndPassword(hash, []byte(os.Getenv("LDT_SECRET")))
 
 	if err != nil {
 		err = errors.New("Unauthorized: Invalid Token")
 		return
 	}
 
-	tokenBody := decrypt([]byte(splitToken[1]), os.Getenv("LDT_SECRET"))
+	encyptedBody, _ := base64.StdEncoding.DecodeString(splitToken[1])
+
+	tokenBody := decrypt(encyptedBody, os.Getenv("LDT_SECRET"))
 	err = json.Unmarshal(tokenBody, &to)
+
+	if err != nil {
+		return
+	}
+
+	isExpired, err = to.isExpired()
+
 	return
 }
 
