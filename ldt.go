@@ -19,10 +19,10 @@ import (
 	"time"
 )
 
-type TokenObject map[string]string
+type Token map[string]string
 
 func New(customFields map[string]string) (ts string) {
-	to := TokenObject{}
+	to := Token{}
 
 	expTime := time.Now()
 	expTime = expTime.Add(15 * time.Minute)
@@ -34,7 +34,7 @@ func New(customFields map[string]string) (ts string) {
 	return
 }
 
-func (t *TokenObject) encrypt() (ts string) {
+func (t *Token) encrypt() (ts string) {
 	hash, _ := bcrypt.GenerateFromPassword([]byte(os.Getenv("LDT_SECRET")), 12)
 	customFields, _ := json.Marshal(t)
 	encryptedCustomFields := encrypt(customFields, os.Getenv("LDT_SECRET"))
@@ -44,7 +44,7 @@ func (t *TokenObject) encrypt() (ts string) {
 	return
 }
 
-func (t *TokenObject) isExpired() (isExpired bool, err error) {
+func (t *Token) isExpired() (isExpired bool, err error) {
 	timeNow := time.Now()
 	expiration, err := strconv.ParseInt(t.GetValue("exp"), 10, 64)
 	if timeNow.After(time.Unix(expiration, 0)) {
@@ -54,7 +54,7 @@ func (t *TokenObject) isExpired() (isExpired bool, err error) {
 	return
 }
 
-func (t TokenObject) GetValue(key string) (value string) {
+func (t Token) GetValue(key string) (value string) {
 	for k, v := range t {
 		if k == key {
 			return v
@@ -79,7 +79,7 @@ func RenewLdtToken(req *http.Request) (isExpired bool, ts string, err error) {
 	return
 }
 
-func GetLdtToken(req *http.Request) (isExpired bool, to TokenObject, err error) {
+func GetLdtToken(req *http.Request) (isExpired bool, to Token, err error) {
 	token := req.Header.Get("Authorization")
 	firstSplitToken := strings.Split(token, " ")
 
