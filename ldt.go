@@ -19,8 +19,10 @@ import (
 	"time"
 )
 
+// Token Unecrypted raw token in the form of a map[string]string
 type Token map[string]string
 
+// New Creates new token using the custom fields and will add a 15 min expiration
 func New(customFields map[string]string) (ts string) {
 	to := Token{}
 
@@ -54,6 +56,7 @@ func (t Token) isExpired() (isExpired bool, err error) {
 	return
 }
 
+// GetValue Returns value from an unencypted token or if no value exists will return empty string
 func (t Token) GetValue(key string) (value string) {
 	for k, v := range t {
 		if k == key {
@@ -63,11 +66,15 @@ func (t Token) GetValue(key string) (value string) {
 	return
 }
 
+// RenewLdtTokenFromRequest renew the token received in a *http.Request by
+// resetting the expiration field and return if the token was expired
 func RenewLdtTokenFromRequest(req *http.Request) (isExpired bool, ts string, err error) {
 	token := req.Header.Get("Authorization")
 	return RenewLdtToken(token)
 }
 
+// RenewLdtToken renew the token from a string by
+// resetting the expiration field and return if the token was expired
 func RenewLdtToken(tokenString string) (isExpired bool, ts string, err error) {
 	isExpired, to, err := GetLdtToken(tokenString)
 
@@ -84,11 +91,13 @@ func RenewLdtToken(tokenString string) (isExpired bool, ts string, err error) {
 	return
 }
 
+// GetLdtTokenFromRequest Returns a token map[string]string from the request and return whether it is expired
 func GetLdtTokenFromRequest(req *http.Request) (isExpired bool, to Token, err error) {
 	token := req.Header.Get("Authorization")
 	return GetLdtToken(token)
 }
 
+// GetLdtTokenFromRequest Returns a token map[string]string from a string and return whether it is expired
 func GetLdtToken(tokenString string) (isExpired bool, to Token, err error) {
 	firstSplitToken := strings.Split(tokenString, " ")
 
