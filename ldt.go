@@ -34,7 +34,7 @@ func New(customFields map[string]string) (ts string) {
 	return
 }
 
-func (t *Token) encrypt() (ts string) {
+func (t Token) encrypt() (ts string) {
 	hash, _ := bcrypt.GenerateFromPassword([]byte(os.Getenv("LDT_SECRET")), 12)
 	customFields, _ := json.Marshal(t)
 	encryptedCustomFields := encrypt(customFields, os.Getenv("LDT_SECRET"))
@@ -44,7 +44,7 @@ func (t *Token) encrypt() (ts string) {
 	return
 }
 
-func (t *Token) isExpired() (isExpired bool, err error) {
+func (t Token) isExpired() (isExpired bool, err error) {
 	timeNow := time.Now()
 	expiration, err := strconv.ParseInt(t.GetValue("exp"), 10, 64)
 	if timeNow.After(time.Unix(expiration, 0)) {
@@ -63,8 +63,13 @@ func (t Token) GetValue(key string) (value string) {
 	return
 }
 
-func RenewLdtToken(req *http.Request) (isExpired bool, ts string, err error) {
-	isExpired, to, err := GetLdtToken(req)
+func RenewLdtTokenFromRequest(req *http.Request) (isExpired bool, ts string, err error) {
+	token := req.Header.Get("Authorization")
+	return RenewLdtToken(token)
+}
+
+func RenewLdtToken(tokenString string) (isExpired bool, ts string, err error) {
+	isExpired, to, err := GetLdtToken(tokenString)
 
 	if err != nil {
 		return
@@ -79,18 +84,22 @@ func RenewLdtToken(req *http.Request) (isExpired bool, ts string, err error) {
 	return
 }
 
-func GetLdtToken(req *http.Request) (isExpired bool, to Token, err error) {
+func GetLdtTokenFromRequest(req *http.Request) (isExpired bool, to Token, err error) {
 	token := req.Header.Get("Authorization")
-	firstSplitToken := strings.Split(token, " ")
+	return GetLdtToken(token)
+}
+
+func GetLdtToken(tokenString string) (isExpired bool, to Token, err error) {
+	firstSplitToken := strings.Split(tokenString, " ")
 
 	if len(firstSplitToken) == 2 {
-		token = firstSplitToken[1]
+		tokenString = firstSplitToken[1]
 	}
 
-	tokenDecoded, _ := base64.StdEncoding.DecodeString(token)
-	token = string(tokenDecoded)
+	tokenDecoded, _ := base64.StdEncoding.DecodeString(tokenString)
+	tokenString = string(tokenDecoded)
 
-	splitToken := strings.Split(token, ".")
+	splitToken := strings.Split(tokenString, ".")
 
 	if len(splitToken) != 2 {
 		err = errors.New("Unauthorized: Invalid Token")
