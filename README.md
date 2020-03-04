@@ -18,6 +18,6 @@ First set an environment variable `LDT_SECRET` Make it large. 256 chars
 ```golang
   // request is *http.Request
   // will renew expired tokens. Leaving up to application with isExpired.
-  isExpired, tokenString, err := RenewLdtTokenFromRequest(request)
+  isExpired, token, err := RenewLdtTokenFromRequest(request)
   isExpired, tokenString, err := RenewLdtToken(tokenString)
   ```
