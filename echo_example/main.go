@@ -22,6 +22,10 @@ func main() {
 
 	e.GET("/test", func(c echo.Context) error {
 		return c.JSON(200, c.Get("custom_token"))
+	}, echo2.ValidateSession, echo2.RenewSession)
+
+	e.GET("/test_login_redirect", func(c echo.Context) error {
+		return c.JSON(200, c.Get("custom_token"))
 	}, echo2.ValidateSessionOrRedirectToLogin, echo2.RenewSession)
 
 	e.GET("/new_token", func(c echo.Context) error {
