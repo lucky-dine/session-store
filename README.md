@@ -1,6 +1,8 @@
 # Lucky Dine Session Store
 
 First set an environment variable `LDT_SECRET` Make it large. 256 chars
+`LOGIN_REDIRECT` the redirect for echo middleware to redirect to login page.
+`SESSION_COOKIE` the name of the cookie that will store the token string.
 
 1. Get a token and set your info like so.
 ```golang

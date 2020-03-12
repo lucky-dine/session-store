@@ -37,7 +37,7 @@ func New(customFields map[string]string) (ts string) {
 }
 
 func (t Token) encrypt() (ts string) {
-	hash, _ := bcrypt.GenerateFromPassword([]byte(os.Getenv("LDT_SECRET")), 12)
+	hash, _ := bcrypt.GenerateFromPassword([]byte(os.Getenv("LDT_SECRET")), 8)
 	customFields, _ := json.Marshal(t)
 	encryptedCustomFields := encrypt(customFields, os.Getenv("LDT_SECRET"))
 	hashString := base64.StdEncoding.EncodeToString(hash)
@@ -46,13 +46,24 @@ func (t Token) encrypt() (ts string) {
 	return
 }
 
-func (t Token) isExpired() (isExpired bool, err error) {
+func (t Token) IsExpired() (isExpired bool, err error) {
 	timeNow := time.Now()
 	expiration, err := strconv.ParseInt(t.GetValue("exp"), 10, 64)
 	if timeNow.After(time.Unix(expiration, 0)) {
 		isExpired = true
 		return
 	}
+	return
+}
+
+func (t Token) Renew() (isExpired bool, ts string, err error) {
+	isExpired, err = t.IsExpired()
+
+	expTime := time.Now()
+	expTime = expTime.Add(15 * time.Minute)
+
+	t["exp"] = strconv.FormatInt(expTime.Unix(), 10)
+	ts = t.encrypt()
 	return
 }
 
@@ -70,6 +81,12 @@ func (t Token) GetValue(key string) (value string) {
 // resetting the expiration field and return if the token was expired
 func RenewLdtTokenFromRequest(req *http.Request) (isExpired bool, ts string, err error) {
 	token := req.Header.Get("Authorization")
+	if token == "" {
+		cookie, _ := req.Cookie(os.Getenv("SESSION_COOKIE"))
+		if cookie != nil {
+			token = cookie.Value
+		}
+	}
 	return RenewLdtToken(token)
 }
 
@@ -94,6 +111,12 @@ func RenewLdtToken(tokenString string) (isExpired bool, ts string, err error) {
 // GetLdtTokenFromRequest Returns a token map[string]string from the request and return whether it is expired
 func GetLdtTokenFromRequest(req *http.Request) (isExpired bool, to Token, err error) {
 	token := req.Header.Get("Authorization")
+	if token == "" {
+		cookie, _ := req.Cookie(os.Getenv("SESSION_COOKIE"))
+		if cookie != nil {
+			token = cookie.Value
+		}
+	}
 	return GetLdtToken(token)
 }
 
@@ -133,7 +156,7 @@ func GetLdtToken(tokenString string) (isExpired bool, to Token, err error) {
 		return
 	}
 
-	isExpired, err = to.isExpired()
+	isExpired, err = to.IsExpired()
 
 	return
 }
