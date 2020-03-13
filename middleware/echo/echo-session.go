@@ -18,7 +18,7 @@ func ValidateSession(next echo.HandlerFunc) echo.HandlerFunc {
 		isExpired, to, err := token.GetLdtTokenFromRequest(c.Request())
 
 		if isExpired || err != nil {
-			return c.JSON(401, "Unathorized")
+			return c.JSON(401, "Unauthorized")
 		}
 
 		c.Set("custom_token", to)
