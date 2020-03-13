@@ -23,3 +23,10 @@ First set an environment variable `LDT_SECRET` Make it large. 256 chars
   isExpired, tokenString, err := RenewLdtTokenFromRequest(request)
   isExpired, tokenString, err := RenewLdtToken(tokenString)
   ```
+### Echo Middleware
+
+* ValidateSession - validates whether the token or cookie is expired and sets `custom_token` object in context to be retrieved by context.Get("custom_token") (if valid).  Will return 401 Unauthorized (not valid)
+
+* ValidateSessionOrRedirectToLogin - validates like function above but instead of returning 401 if not validated. Redirects to a login page with a query string paramter of `forward` and the path the user was trying to reach.
+
+* RenewSession - can only be used after one of the above middleware functions and only with a cookie version of the session.
